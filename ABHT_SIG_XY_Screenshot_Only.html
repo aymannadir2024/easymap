@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABHT SIG — X/Y & Screenshot</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzxZIzU7s2JfoC0hMgxYw29kGg=" crossorigin="">
+  <style>
+    :root{color-scheme:dark;--bg:#101720;--panel:#18232f;--field:#101924;--line:#2b3d4c;--ink:#edf3f8;--muted:#97a9b9;--accent:#4ea7dd;--good:#76e3ad;--bad:#ff9393}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Tahoma,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    body{overflow:hidden}
+    .app{height:100dvh;display:grid;grid-template-rows:56px minmax(0,1fr)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--line);background:#131d28}
+    .brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800}
+    .logo{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#236e9a;color:white;font-size:11px}
+    .subtitle{font-size:11px;color:var(--muted);font-weight:400}
+    .workspace{display:grid;grid-template-columns:310px minmax(0,1fr);min-height:0}
+    aside{padding:20px 16px;border-left:1px solid var(--line);background:var(--panel);min-width:0;overflow:auto}
+    h2{font-size:14px;margin:0 0 16px}
+    label{display:block;font-size:12px;color:#c6d4df;margin:13px 0 6px}
+    input{display:block;width:100%;border:1px solid #395061;background:var(--field);color:#fff;border-radius:9px;padding:11px 12px;font-size:15px;outline:none;font-family:inherit}
+    input:focus{border-color:#69b2e3;box-shadow:0 0 0 3px #2d719440}
+    input.coord{direction:ltr;text-align:left;font-family:Arial,sans-serif;font-variant-numeric:tabular-nums}
+    input::placeholder{color:#708394}
+    button{display:block;width:100%;padding:12px;border:0;border-radius:9px;font-size:13px;font-weight:800;cursor:pointer;transition:background .2s}
+    .go{margin-top:16px;background:var(--accent);color:#09263a}.go:hover{background:#79c2ef}
+    .shot{margin-top:12px;background:#2f815b;color:#fff}.shot:hover{background:#3a9e70}
+    .shot:disabled{opacity:.45;cursor:not-allowed}
+    .hr{height:1px;background:var(--line);margin:23px 0}
+    .hint{font-size:11px;line-height:1.75;color:var(--muted);margin-top:9px}
+    .message{font-size:12px;line-height:1.65;min-height:38px;margin:13px 0;white-space:pre-line;color:var(--muted)}
+    .message.success{color:var(--good)}.message.error{color:var(--bad)}
+    .map-stage{position:relative;overflow:hidden;min-width:0;min-height:0;background:#1c303a}
+    #map{position:absolute;inset:0;z-index:1}
+    .leaflet-container{background:#1c303a;font-family:Arial,sans-serif}
+    .leaflet-control-attribution{font-size:10px!important}
+    .cross-pin{width:22px;height:22px;background:#fd394f;border:3px solid white;border-radius:50%;box-shadow:0 0 0 5px #fd394f50,0 3px 14px #000b}
+    .capture-overlay{position:absolute;inset:0;z-index:550;pointer-events:none;display:none}
+    .capture-overlay.show{display:block}
+    .capture-number{position:absolute;top:18px;right:18px;max-width:58%;background:rgba(255,255,255,.94);color:#152b3d;font-weight:900;padding:11px 17px;border-radius:8px;font-size:17px;box-shadow:0 3px 15px #0004;overflow-wrap:anywhere}
+    .capture-xy{position:absolute;bottom:40px;left:18px;direction:ltr;text-align:left;background:rgba(255,255,255,.95);color:#122a38;font:700 16px/1.5 Arial,sans-serif;padding:9px 15px;border-radius:8px;box-shadow:0 3px 15px #0004}
+    .point-center-label{position:absolute;left:50%;top:15px;transform:translateX(-50%);z-index:510;color:#fff;font-size:11px;background:#101b24ab;padding:6px 10px;border-radius:7px;pointer-events:none;display:none}
+    .point-center-label.show{display:block}
+    @media(max-width:760px){.app{grid-template-rows:48px minmax(0,1fr)}header{padding:0 12px}.workspace{grid-template-columns:1fr;grid-template-rows:auto minmax(240px,1fr)}aside{padding:11px 13px;overflow:visible;border-left:0;border-bottom:1px solid var(--line)}h2{display:none}.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fields label{margin:0 0 5px}input{padding:8px;font-size:13px}.go{margin-top:8px}.hr{margin:8px 0}.hint{display:none}.shot{margin-top:7px}.message{min-height:0;margin:5px 0}.capture-xy{font-size:12px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><div class="logo">ABHT</div><div>SIG — Coordonnées & Screenshot</div></div>
+      <div class="subtitle">Marrakech–Safi · Lambert / Nord Maroc</div>
+    </header>
+    <div class="workspace">
+      <aside>
+        <h2>تحديد الموقع بالإحداثيات</h2>
+        <div class="fields">
+          <div><label for="x">X — Lambert</label><input class="coord" id="x" inputmode="decimal" placeholder="250000" autocomplete="off"></div>
+          <div><label for="y">Y — Lambert</label><input class="coord" id="y" inputmode="decimal" placeholder="100000" autocomplete="off"></div>
+        </div>
+        <button class="go" id="locate" type="button">📍 إظهار النقطة على الخريطة</button>
+        <div class="hr"></div>
+        <label for="pointNumber">رقم النقطة (اسم الصورة JPG)</label>
+        <input id="pointNumber" type="text" placeholder="12" maxlength="80" autocomplete="off">
+        <button class="shot" id="screenshot" type="button" disabled>📷 Screenshot — A4 JPG</button>
+        <div class="message" id="status" aria-live="polite">دخل X و Y وحدد النقطة.</div>
+        <p class="hint">الخريطة الفضائية كتحتاج الإنترنت. باش تحفظ Screenshot بلا هوامش، اختار تبويب هاد الصفحة ملي يطلب المتصفح المشاركة. الصورة كتخرج A4 أفقي باسم رقم النقطة.</p>
+      </aside>
+      <main class="map-stage" id="mapStage">
+        <div id="map" aria-label="Carte satellite"></div>
+        <div class="point-center-label" id="centerLabel">Satellite</div>
+        <div class="capture-overlay" id="overlay" aria-hidden="true">
+          <div class="capture-number" id="captureNumber"></div>
+          <div class="capture-xy" id="captureXY"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+  (()=>{
+    'use strict';
+    const $=id=>document.getElementById(id);
+    const status=(s,type='')=>{$('status').textContent=s;$('status').className='message'+(type?' '+type:'')};
+    // Same calibrated Lambert Nord Maroc -> WGS84 conversion used in the earlier ABHT SIG.
+    // Accuracy is approximate (typically a few metres within the original working area).
+    function lambertToWgs(x,y){
+      const u=x/100000,v=y/100000;
+      const f=[1,u,v,u*u,u*v,v*v,u*u*u,u*u*v,u*v*v,v*v*v];
+      const clo=[-10.6035903,1.03929408,-0.0518712066,0.000522839549,0.0103323491,-0.000522551006,-0.000035380674,0.0000096331137,0.000106100354,-0.00000320791744];
+      const cla=[30.4795447,0.0449302414,0.900165751,-0.00448458237,0.000474701576,0.000268740621,-0.00000143103283,-0.0000474178412,-0.000000450206303,-0.0000365654964];
+      let lon=0,lat=0;
+      for(let i=0;i<f.length;i++){lon+=f[i]*clo[i];lat+=f[i]*cla[i]}
+      return [lon,lat];
+    }
+    function parseNumber(s){return Number(String(s).trim().replace(/\s/g,'').replace(',','.'))}
+    function fmt(n){return Number(n).toFixed(2)}
+    function safeFilename(s){
+      return (String(s||'').trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').replace(/\s+/g,' ').slice(0,80)||'screenshot');
+    }
+    if(typeof L==='undefined'){
+      status('تعذر تحميل الخريطة. تأكد من الإنترنت وأعد تحميل الصفحة.','error');return;
+    }
+    const map=L.map('map',{zoomControl:true,preferCanvas:true,attributionControl:true}).setView([31.6258,-7.9892],10);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+      maxZoom:19,maxNativeZoom:19,attribution:'Tiles © Esri, Maxar, Earthstar Geographics, and the GIS User Community',crossOrigin:true
+    }).addTo(map);
+    const pointIcon=L.divIcon({className:'',html:'<div class="cross-pin"></div>',iconSize:[22,22],iconAnchor:[11,11]});
+    let marker=null,active=null,busy=false;
+    function locate(){
+      const sx=$('x').value.trim(),sy=$('y').value.trim();
+      if(!sx||!sy){status('خاصك تدخل الإحداثيات X و Y.','error');return}
+      const x=parseNumber(sx),y=parseNumber(sy);
+      if(!Number.isFinite(x)||!Number.isFinite(y)){status('الإحداثيات خاصها تكون أرقام صحيحة.','error');return}
+      const [lon,lat]=lambertToWgs(x,y);
+      if(!(lat>25&&lat<37&&lon>-17&&lon<-1)){status('الإحداثيات خارج المجال المتوقع للمغرب. تحقق من X و Y ونظام Lambert Nord.','error');return}
+      if(marker)map.removeLayer(marker);
+      marker=L.marker([lat,lon],{icon:pointIcon,keyboard:false}).addTo(map);
+      map.setView([lat,lon],17,{animate:false});
+      marker.bindPopup(`<strong>X: ${fmt(x)}<br>Y: ${fmt(y)}</strong>`);
+      active={x,y,lat,lon};
+      $('screenshot').disabled=false;
+      status(`تم تحديد النقطة.\nX = ${fmt(x)} | Y = ${fmt(y)}`,'success');
+    }
+    $('locate').addEventListener('click',locate);
+    [$('x'),$('y')].forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter')locate()}));
+    function fitA4(source){
+      const width=3508,height=2480;
+      const result=document.createElement('canvas');result.width=width;result.height=height;
+      const ctx=result.getContext('2d',{alpha:false});
+      // Centre-crop instead of stretching or adding black/white margins.
+      const target=width/height,aspect=source.width/source.height;
+      let sx=0,sy=0,sw=source.width,sh=source.height;
+      if(aspect>target){sw=source.height*target;sx=(source.width-sw)/2}
+      else{sh=source.width/target;sy=(source.height-sh)/2}
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+      ctx.drawImage(source,sx,sy,sw,sh,0,0,width,height);
+      return result;
+    }
+    const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    function saveCanvas(canvas,filename){
+      const link=document.createElement('a');link.download=filename;
+      link.href=canvas.toDataURL('image/jpeg',0.95);
+      document.body.appendChild(link);link.click();link.remove();
+    }
+    async function captureFromTab(){
+      // Browser asks the user to select this tab; this captures satellite imagery reliably,
+      // without needing to re-fetch cross-origin map tiles.
+      const stream=await navigator.mediaDevices.getDisplayMedia({video:{displaySurface:'browser',frameRate:5},audio:false,preferCurrentTab:true,selfBrowserSurface:'include'});
+      try{
+        const video=document.createElement('video');video.srcObject=stream;video.muted=true;video.playsInline=true;
+        await video.play();
+        await pause(700);
+        const frame=document.createElement('canvas');frame.width=video.videoWidth;frame.height=video.videoHeight;
+        if(!frame.width||!frame.height)throw new Error('المتصفح ما عطاش صورة للمشاركة.');
+        frame.getContext('2d').drawImage(video,0,0);
+        const rect=$('mapStage').getBoundingClientRect();
+        const scaleX=frame.width/window.innerWidth,scaleY=frame.height/window.innerHeight;
+        const x=Math.max(0,Math.round(rect.left*scaleX));
+        const y=Math.max(0,Math.round(rect.top*scaleY));
+        const w=Math.min(frame.width-x,Math.round(rect.width*scaleX));
+        const h=Math.min(frame.height-y,Math.round(rect.height*scaleY));
+        if(w<100||h<100)throw new Error('ما قدرناش نحددو مساحة الخريطة. خاصك تختار تبويب هاد الصفحة.');
+        const crop=document.createElement('canvas');crop.width=w;crop.height=h;
+        crop.getContext('2d').drawImage(frame,x,y,w,h,0,0,w,h);
+        return fitA4(crop);
+      }finally{stream.getTracks().forEach(track=>track.stop())}
+    }
+    async function captureFallback(){
+      if(!window.html2canvas){
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement('script');
+          s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+          s.onload=resolve;s.onerror=()=>reject(new Error('مكتبة screenshot ما تحملاتش.'));
+          document.head.appendChild(s);
+        });
+      }
+      const result=await html2canvas($('mapStage'),{useCORS:true,allowTaint:false,backgroundColor:'#1c303a',logging:false,scale:2});
+      return fitA4(result);
+    }
+    $('screenshot').addEventListener('click',async()=>{
+      if(busy||!active)return;
+      busy=true;$('screenshot').disabled=true;
+      const pointNo=$('pointNumber').value.trim();
+      const filename=safeFilename(pointNo)+'.jpg';
+      $('captureNumber').textContent=pointNo?'N° '+pointNo:'ABHT SIG';
+      $('captureXY').textContent=`X ${fmt(active.x)}  |  Y ${fmt(active.y)}`;
+      $('overlay').classList.add('show');
+      $('overlay').setAttribute('aria-hidden','false');
+      status('اختار التبويب اللي فيه الخريطة باش يتحفظ Screenshot.');
+      try{
+        let screenshot;
+        if(navigator.mediaDevices?.getDisplayMedia){
+          screenshot=await captureFromTab();
+        }else{
+          screenshot=await captureFallback();
+        }
+        saveCanvas(screenshot,filename);
+        status(`تم إنشاء ${filename} بحجم A4 أفقي (JPG).`,'success');
+      }catch(e){
+        const denied=e.name==='NotAllowedError';
+        status(denied?'تلغات مشاركة التبويب، لذلك ما تحفّظاتش الصورة.':'Screenshot ما نجحش: '+(e.message||String(e)),'error');
+        console.error(e);
+      }finally{
+        $('overlay').classList.remove('show');$('overlay').setAttribute('aria-hidden','true');
+        busy=false;$('screenshot').disabled=!active;
+      }
+    });
+    // Keep tiles aligned after responsive layout changes.
+    window.addEventListener('resize',()=>map.invalidateSize());
+  })();
+  </script>
+</body>
+</html>
